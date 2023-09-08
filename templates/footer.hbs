@@ -1,42 +1,447 @@
-<footer class="footer">
-  <div class="footer-inner">
-    {{#link 'help_center'}}{{help_center.name}}{{/link}}
-
-
-    
-    <script type="text/javascript">
-  window.zESettings = {
-    webWidget: {
-      chat: {
-        concierge: {
-          name: 'john do',
-          title: { '*': 'Live test' }
-        }
-      }
-    }
-  };
-</script>
-
-
-    
-    <div class="footer-language-selector">
-      {{#if alternative_locales}}
-        <div class="dropdown language-selector">
-          <button class="dropdown-toggle" aria-haspopup="true">
-            {{current_locale.name}}
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" focusable="false" viewBox="0 0 12 12" class="dropdown-chevron-icon">
-              <path fill="none" stroke="currentColor" stroke-linecap="round" d="M3 4.5l2.6 2.6c.2.2.5.2.7 0L9 4.5"/>
-            </svg>
-          </button>
-          <span class="dropdown-menu dropdown-menu-end" role="menu">
-            {{#each alternative_locales}}
-              <a href="{{url}}" dir="{{direction}}" rel="nofollow" role="menuitem">
-                {{name}}
-              </a>
-            {{/each}}
-          </span>
+<footer>
+    <div class="footer_content">
+        <div class="container">
+            <div class="motto">
+            <img src="{{asset 'every_little_helps.svg'}}" alt="">
+            </div>
+            <div class="group_list">
+            <!-- <p>{{dc 'footer_text'}}</p> -->            
+            </div> <!-- footer_collapsible_list -->        
         </div>
-      {{/if}}
     </div>
-  </div>
+  
+  
+  <!----- Chat widget ----->
+  
+<script>  
+$(function() {
+    var name, email, tags;
+    try {
+        name = HelpCenter && HelpCenter.user.name || '';
+        email = HelpCenter && HelpCenter.user.email || '';
+        tags = HelpCenter && HelpCenter.user.tags || '';
+    } catch (err) {
+        name = '';
+        email = '';
+        tags = '';
+    }
+
+    function showchat() {
+        if (((tags.includes('uk') || tags.includes('ie') || tags.includes('gb')) && (tags.includes('office') || tags.includes('depot'))) || (tags.includes('in') && tags.includes('office'))) {
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+    var showwidget = showchat();
+    console.log("showwidget: " + showwidget);
+    if (showwidget) {
+        enableChat();
+    }
+
+    function enableChat() {
+        var tescoChatScript = document.createElement('script');
+        tescoChatScript.setAttribute('src', 'https://static.zdassets.com/ekr/snippet.js?key=10ac4fe7-79e4-46b0-a9f1-4b4410dadf4b');
+        tescoChatScript.setAttribute('id', 'ze-snippet');
+        document.querySelector("footer").appendChild(tescoChatScript);
+
+        // global variable to track the chat status
+        var networkStatus = '';
+        // NOTE: the main function to execute the widget customization
+        var runWidgetLogic = function() {
+            'use strict';
+            var ze_module = {};
+            ze_module.init = function(config) { // init Widget logic
+                if (zE && config) {
+                    window.onload = _applyWidgetConfig(config);
+                } else {
+                    console.log("ERROR: Widget or Widget configuration is missing. Widget settings will not be appllied.");
+                    return;
+                }
+            };
+            // execute Widget logic
+            function _applyWidgetConfig(config) {
+                _setLocale(config.locale);
+                _updatePath(config.path);
+                _setUserDetails(config.prefill_name, config.prefill_email);
+                _IdentifyUsers(config.identify_name, config.identify_email);
+                _updateChatSettings(config);
+            }
+            // set the Widget language
+            function _setLocale(locale) {
+                locale && zE('webWidget', 'setLocale', locale);
+            }
+            // update the chat visitor’s webpath.
+            function _updatePath(pathObject) {
+                pathObject && zE('webWidget', 'updatePath', pathObject);
+            }
+            // Prefills the user details
+            function _setUserDetails(prefill_name, prefill_email) {
+                prefill_email && zE('webWidget', 'prefill', {
+                    name: {
+                        value: prefill_name,
+                        readOnly: true
+                    },
+                    email: {
+                        value: prefill_email,
+                        readOnly: true
+                    }
+                });
+            }
+            // Identifies an end user to Zendesk
+            function _IdentifyUsers(identify_name, identify_email) {
+                identify_email && zE('webWidget', 'identify', {
+                    name: identify_name,
+                    email: identify_email
+                });
+            }
+            // updating global setttings
+            function _updateGlobalSettings(config, status) { // update global Widget settings
+                window.zESettings = config.webWidgetConfig ? {
+                    webWidget: config.webWidgetConfig
+                } : {
+                    webWidget: {
+                        chat: {
+                            departments: {}
+                        }
+                    }
+                };
+                if (!window.zESettings.webWidget.chat) window.zESettings.webWidget.chat = {
+                    departments: {}
+                };
+                _setSurpressSettingProp('helpCenter', !config.HCSearch, status);
+                _setSurpressSettingProp('contactForm', !config.contactForm, status);
+                _adjustChatLabel(config.HCSearch, config.chat, config.contactForm);
+            }
+            // suppressing properties
+            function _setSurpressSettingProp(prop, val, status) {
+                // extend config with suppress logic
+                if (window.zESettings && window.zESettings.webWidget) {
+                    var ww = window.zESettings.webWidget;
+                    if (ww[prop]) ww[prop].suppress = val && !!status;
+                    else ww[prop] = {
+                        'suppress': val && !!status
+                    }
+                } else {
+                    console.log('ERROR: Widget is missing window.zESettings object.');
+                }
+            }
+
+            function _adjustChatLabel(HCSearch, chat, contactForm) {
+                // change launcher label if contact options and chat are enabled
+                // when contact options and chat are enabled Widget shows "Chat now" from webWidget.launcher.chatLabel,
+                // however, it opens contact options instead of chat.
+                // this function displays "Need Help?" from webWidget.launcher.label so label will make more sense
+                var wwConf = window.zESettings.webWidget;
+                if (wwConf.contactOptions && wwConf.contactOptions.enabled && wwConf.launcher) {
+                    if (!(chat && !HCSearch && !contactForm)) wwConf.launcher.chatLabel = wwConf.launcher.label;
+                }
+            }
+
+            function _updateChatSettings(config) {
+                // NOTE: update Chat settings when chat is connected
+                zE('webWidget:on', 'chat:connected', function() {
+                    _handleChatSettings(config);
+                    // NOTE: un-suppress chat channel if visitor is chatting, otherwise follow the setting for chat channel
+                    zE('webWidget', 'updateSettings', {
+                        webWidget: {
+                            chat: {
+                                suppress: !(config.chat || (zE && zE('webWidget:get', 'chat:isChatting')))
+                            }
+                        }
+                    });
+                    // NOTE: execute command on Chat status is changed
+                    zE('webWidget:on', 'chat:status', function(status) {
+                        _handleChatSettings(config, status);
+                    });
+                    // NOTE: execute command on Chat has unread messages
+                    zE('webWidget:on', 'chat:unreadMessages', function(count) {
+                        _handleChatSettings(config);
+                    });
+                    // NOTE: execute command on Chat Started
+                    zE('webWidget:on', 'chat:start', function() {
+                        //console.log('successfully started a Zendesk Chat!');
+                    });
+                    // NOTE: execute command on Chat Ended
+                    zE('webWidget:on', 'chat:end', function() {
+                        _handleChatSettings(config);
+                    });
+                    // When visitor is chating on one page and navigates to the page where chat is supressed
+                    // it should re-open the Widget on the chat screen. Since there is no method to show chat screen
+                    // this workaround will supress other channels > show Widget on the chat screen > re-enable
+                    // other channels as per the config. Visitor may need to minimize and re-open the wiget to
+                    // see the effect of re-enabling the other channels
+                    if ((zE && zE('webWidget:get', 'chat:isChatting')) && (config.HCSearch || config.contactForm)) {
+                        if (zE('webWidget:get', 'display') !== 'chat') {
+                            zE('webWidget', 'updateSettings', {
+                                helpCenter: {
+                                    'suppress': true
+                                },
+                                contactForm: {
+                                    'suppress': true
+                                }
+                            });
+                            zE('webWidget', 'open');
+                            zE('webWidget', 'updateSettings', {
+                                helpCenter: {
+                                    'suppress': !config.HCSearch
+                                },
+                                contactForm: {
+                                    'suppress': !config.contactForm
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+            // NOTE: !Caution! This code segment has high impact. Understanding of this code is important before making any changes
+            function _handleChatSettings(config, liveStatus) {
+                if (config.departments && config.departments.select) {
+                    var department_status = zE('webWidget:get', 'chat:department', config.departments.select);
+                    // depending on the chat status (online or offline), the global setting is being updated accordingly
+                    if (liveStatus || networkStatus !== department_status.status) {
+                        networkStatus = liveStatus || department_status.status;
+                        _updateGlobalSettings(config, networkStatus === 'online');
+                    }
+                    var $chatBtn = $("#launcher").contents().find("#Embed button");
+                    var settingObj = {
+                        chat: {
+                            suppress: false
+                        }
+                    };
+                    var $icon = $chatBtn.find('[data-testid^="Icon"]');
+                    $icon.removeAttr("style");
+                    // Chat will be suppressed when noone is chating or when department is offline
+                    if ((zE && zE('webWidget:get', 'chat:isChatting')) || (networkStatus === 'online')) {
+                        // NOTE: ONLINE LOGIC
+                        Object.assign(settingObj, config.online);
+                        settingObj.chat.departments = config.departments;
+                        // enabling chat launcher button if it was disabled
+                        $chatBtn.css({
+                            'pointer-events': 'all'
+                        });
+                    } else {
+                        // NOTE: OFFLINE LOGIC and the user is not chatting
+                        Object.assign(settingObj, config.offline);
+                        // closing the open chat box
+                        zE('webWidget', 'close');
+                        // disabling or enabling chat launcher button
+                        $chatBtn.css({
+                            'pointer-events': 'none'
+                        });
+                        // code for replacing icon
+                        // if icon is provided then that icon has been used to replace the existing one
+                        if (config.offline.icon) {
+                            $icon.css({
+                                display: 'inline-block'
+                            });
+                            $icon.html('<img src="' + config.offline.icon + '" />');
+                        }
+                        // removing icon if icon is set to false
+                        else if (config.offline.icon === false) {
+                            $icon.attr("style", "display: none !important");
+                        }
+                    }
+                    // suppressing the helpCenter search feature if it was suppressed in prime configuration
+                    if (!config.HCSearch) {
+                        settingObj.helpCenter = {
+                            suppress: true
+                        };
+                    }
+                    // suppressing the contactForm search feature if it was suppressed in prime configuration
+                    if (!config.contactForm) {
+                        settingObj.contactForm = {
+                            suppress: true
+                        };
+                    }
+                    // suppressing the chat feature if it was suppressed in prime configuration
+                    if (!config.chat) {
+                        settingObj.chat = {
+                            suppress: true
+                        };
+                    }
+                    // setting chat launcher button at the right-bottom position
+                    settingObj.position = {
+                        horizontal: 'right',
+                        vertical: 'bottom'
+                    };
+                    // NOTE: final updation of chat widget settings
+                    zE('webWidget', 'updateSettings', {
+                        webWidget: settingObj
+                    });
+                    setTimeout(function() {
+                        if ($("#launcher").css("opacity") === "0") {
+                            $("#launcher").css({
+                                top: 'auto',
+                                opacity: '1',
+                                bottom: 0,
+                                right: 0
+                            });
+                        }
+                    }, 1000);
+                } else {
+                    zE('webWidget', 'updateSettings', window.zESettings.webWidget);
+                }
+            }
+            return ze_module;
+        };
+        // NOTE: window load listener to start executing the code of widget customization
+        window.addEventListener("load", function() {
+
+            // configuring the prime widget features
+            runWidgetLogic().init({
+                // REQUIRED: enable HC Search?
+                HCSearch: false,
+
+                // REQUIRED: enable chat?
+                chat: true,
+
+                // REQUIRED: enable contact form?
+                contactForm: false,
+
+                // OPTIONAL: Chat department configuration
+                // enabled: [''] will hide Department selector
+                // select: 'DEPARTMENT NAME' will preset Chat department
+                departments: {
+                    enabled: [''],
+                    //enabled: ['Support EN'],
+                    select: 'Support EN'
+                },
+                // OPTIONAL: Set widget language https://developer.zendesk.com/embeddables/docs/widget/core#setlocale
+                locale: 'en',
+                // OPTIONAL: Set widget path (valid for Single Page Applications) https://developer.zendesk.com/embeddables/docs/widget/core#updatepath
+                path: {
+                    title: '',
+                    url: ''
+                },
+                // NOTE: custom settings for offline chat status
+                // Please provide required configuration for offline status only
+                offline: {
+                    icon: false,
+                    color: {
+                        theme: '#ccc'
+                    },
+                    launcher: {
+                        label: {
+                            '*': 'Chat unavailable'
+                        },
+                        // The Web Widget button title (HC is Off)
+                        chatLabel: {
+                            '*': 'Chat unavailable'
+                        }
+                    }
+                },
+                // NOTE: custom settings for offline chat status
+                // Please provide necessary configuration for online status only
+                online: {
+                    color: {
+                        theme: '#00539F'
+                    },
+                    launcher: {
+                        label: {
+                            '*': 'Chat'
+                        },
+                        chatLabel: {
+                            '*': 'Chat'
+                        }
+                    },
+                    chat: {
+                        title: {
+                            '*': 'Chat with IT Service Desk'
+                        },
+                        prechatForm: {
+                            greeting: {
+                                '*': 'Please let us know what your query is about. To update a previous query you can go to "My requests" from any page.'
+                            }
+                        }
+                    }
+                },
+                prefill_name: name,
+                prefill_email: email,
+                identify_name: name,
+                identify_email: email,
+                // OPTIONAL: config for window.zESettings.webWidget
+                webWidgetConfig: {
+                    zIndex: 9999999999,
+                    contactOptions: {
+                        enabled: true,
+                        contactButton: {
+                            '*': '!Get in Touch'
+                        },
+                        // The Chat Label on the Contact Options window
+                        chatLabelOnline: {
+                            '*': '!Enjoy Live Chat'
+                        },
+                        chatLabelOffline: {
+                            '*': '!Chat is Offline'
+                        },
+                        // The Contact Form Label
+                        contactFormLabel: {
+                            '*': '!Leave us a message'
+                        }
+                    },
+                    // The Widget Color
+                    color: {
+                        theme: '#00539F'
+                    },
+                    launcher: {
+                        // The Web Widget button title (HC/Contact Form are On)
+                        label: {
+                            '*': '!Need Help?'
+                        },
+                        // The Web Widget button title (HC is Off)
+                        chatLabel: {
+                            '*': 'Chat'
+                        }
+                    },
+                    helpCenter: {
+                        // Sets the title of the Help Center Window
+                        title: {
+                            '*': '!nBrown SUPPORT'
+                        },
+                        // Sets the visibility of the button that would redirect the user to the full HC portal
+                        originalArticleButton: false
+                    },
+                    contactForm: {
+                        title: {
+                            '*': 'Tesco Support'
+                        }
+                    },
+                    // Sets the visibility of the popout button
+                    navigation: {
+                        popoutButton: {
+                            enabled: false
+                        }
+                    },
+                    chat: {
+                        prechatForm: {
+                            // The Prechat greeting text
+                            greeting: {
+                                '*': 'Please let us know what your query is about'
+                            }
+                        },
+                        title: {
+                            '*': 'Chat with IT Service Desk'
+                        },
+                        concierge: {
+                            // the Concierge parameters
+                            //avatarPath: '',
+                            name: 'IT Service Desk',
+                            title: {
+                                '*': 'Our agents are here to help'
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+});
+</script>
+  <!----- Chat widget ends ----->
+    
 </footer>
+
+
+
